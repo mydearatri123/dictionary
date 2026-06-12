@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>日语词典</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* ====== Reset & Base ====== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+      background: #f0f2f5; color: #1f1f1f;
+      display: flex; justify-content: center;
+      min-height: 100dvh;
+    }
+    #app {
+      width: 100%; max-width: 480px;
+      min-height: 100dvh;
+      display: flex; flex-direction: column;
+      background: #f0f2f5;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ====== Header ====== */
+    #header {
+      background: #1a73e8; color: #fff;
+      padding: 12px 16px;
+      display: flex; align-items: center;
+      gap: 12px;
+      min-height: 52px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+    #header-title { font-size: 1.15rem; font-weight: 600; flex: 1; }
+    #header-back {
+      display: none;
+      background: none; border: none; color: #fff;
+      font-size: 1.4rem; cursor: pointer; padding: 4px 8px;
+      line-height: 1;
+    }
+    #header-action {
+      background: none; border: none; color: #fff;
+      font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+    }
+
+    /* ====== Main Content ====== */
+    #content {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 16px;
+      padding-bottom: 80px; /* room for bottom nav */
+      -webkit-overflow-scrolling: touch;
+    }
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn 0.18s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ====== Bottom Nav ====== */
+    #bottom-nav {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      display: flex;
+      background: #fff;
+      border-top: 1px solid #e0e0e0;
+      padding-bottom: env(safe-area-inset-bottom);
+      flex-shrink: 0;
+      box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
+    }
+    #bottom-nav button {
+      flex: 1; padding: 10px 8px 6px;
+      background: none; border: none;
+      font-size: 0.8rem; color: #666;
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      transition: color 0.15s;
+    }
+    #bottom-nav button .nav-icon { font-size: 1.3rem; }
+    #bottom-nav button.active { color: #1a73e8; font-weight: 600; }
+
+    /* ====== Cards ====== */
+    .card {
+      background: #fff; border-radius: 12px; padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      user-select: none;
+    }
+    .card:active { transform: scale(0.98); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* big action cards on home */
+    .home-card {
+      background: #fff; border-radius: 14px; padding: 22px 16px;
+      text-align: center; font-size: 1.05rem; font-weight: 600;
+      color: #1a73e8; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      transition: transform 0.1s, box-shadow 0.1s;
+      user-select: none;
+    }
+    .home-card:active { transform: scale(0.97); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .home-card .icon { font-size: 2rem; display: block; margin-bottom: 6px; }
+
+    /* ====== Forms ====== */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 0.85rem; color: #555;
+      margin-bottom: 4px; font-weight: 500;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 1rem; font-family: inherit;
+      background: #fafafa;
+      transition: border 0.15s;
+      -webkit-appearance: none;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: #1a73e8; background: #fff;
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .form-group select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 32px;
+    }
+    .cond-group { display: none; }
+    .cond-group.show { display: block; }
+
+    .btn {
+      display: inline-block; padding: 10px 20px;
+      border: none; border-radius: 8px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.75; }
+    .btn-primary { background: #1a73e8; color: #fff; width: 100%; }
+    .btn-danger { background: #e53935; color: #fff; }
+    .btn-outline { background: none; border: 1.5px solid #1a73e8; color: #1a73e8; }
+    .btn-sm { padding: 6px 14px; font-size: 0.85rem; border-radius: 6px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+
+    /* ====== Item rows (grammar / note items) ====== */
+    .item-card {
+      background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 10px;
+      padding: 12px; margin-bottom: 10px;
+      position: relative;
+    }
+    .item-card .item-remove {
+      position: absolute; top: 6px; right: 10px;
+      background: none; border: none; color: #e53935;
+      font-size: 1.2rem; cursor: pointer; padding: 2px 6px;
+    }
+
+    /* ====== Search ====== */
+    .search-box {
+      position: relative; margin-bottom: 16px;
+    }
+    .search-box input {
+      width: 100%; padding: 10px 40px 10px 14px;
+      border: 1.5px solid #ddd; border-radius: 10px;
+      font-size: 1rem; background: #fff;
+      -webkit-appearance: none;
+    }
+    .search-box input:focus { outline: none; border-color: #1a73e8; }
+    .search-box .clear-btn {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #999; font-size: 1.2rem;
+      cursor: pointer; padding: 4px;
+    }
+    .result-count { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+
+    /* ====== Detail page ====== */
+    .detail-field { margin-bottom: 12px; }
+    .detail-field .field-label { font-size: 0.8rem; color: #888; margin-bottom: 2px; }
+    .detail-field .field-value { font-size: 1.05rem; }
+
+    /* ====== Misc ====== */
+    .empty-state { text-align: center; color: #999; padding: 40px 0; font-size: 0.95rem; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+    .tag {
+      display: inline-block; padding: 3px 10px;
+      background: #e8f0fe; color: #1a73e8;
+      border-radius: 20px; font-size: 0.8rem; margin: 2px 4px 2px 0;
+    }
+    .settings-section { margin-top: 24px; }
+    .settings-section h4 { font-size: 0.85rem; color: #888; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header id="header">
+    <button id="header-back" title="返回">←</button>
+    <span id="header-title">日语词典</span>
+    <button id="header-action" title="设置">⚙</button>
+  </header>
+
+  <!-- Main Content -->
+  <main id="content">
+
+    <!-- ====== 查词主页 ====== -->
+    <section class="view active" id="view-dict-home">
+      <div class="home-card" data-goto="word-search" style="margin-bottom:14px">
+        <span class="icon">📖</span>查单词
+      </div>
+      <div class="home-card" data-goto="grammar-search" style="margin-bottom:14px">
+        <span class="icon">📐</span>查语法
+      </div>
+      <div class="home-card" data-goto="add-choose">
+        <span class="icon">➕</span>添加单词或语法
+      </div>
+
+      <div class="settings-section">
+        <h4>数据管理</h4>
+        <div class="btn-row">
+          <button class="btn btn-outline btn-sm" id="btn-export">导出 JSON</button>
+          <button class="btn btn-outline btn-sm" id="btn-import">导入 JSON</button>
+        </div>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+    </section>
+
+    <!-- ====== 查单词 ====== -->
+    <section class="view" id="view-word-search">
+      <div class="search-box">
+        <input type="text" id="word-search-input" placeholder="输入单词搜索..." autocomplete="off">
+        <button class="clear-btn" id="word-search-clear">✕</button>
+      </div>
+      <div class="result-count" id="word-result-count"></div>
+      <div id="word-results"></div>
+      <div class="empty-state" id="word-empty" style="display:none">还没有单词，先去添加吧</div>
+    </section>
+
+    <!-- ====== 单词详情 ====== -->
+    <section class="view" id="view-word-detail">
+      <div id="word-detail-content"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" id="word-edit-btn">编辑</button>
+        <button class="btn btn-danger btn-sm" id="word-delete-btn">删除</button>
+      </div>
+    </section>
+
+    <!-- ====== 单词表单（添加/编辑） ====== -->
+    <section class="view" id="view-word-form">
+      <div class="form-group">
+        <label>单词</label>
+        <input type="text" id="wf-word" placeholder="如：食べる">
+      </div>
+      <div class="form-group">
+        <label>读法</label>
+        <input type="text" id="wf-reading" placeholder="如：たべる">
+      </div>
+      <div class="form-group">
+        <label>词性</label>
+        <select id="wf-pos">
+          <option value="">请选择</option>
+          <option value="名词">名词</option>
+          <option value="形容词">形容词</option>
+          <option value="动词">动词</option>
+          <option value="副词">副词</option>
+        </select>
+      </div>
+      <div class="form-group cond-group" id="wf-verb-group">
+        <label>动词分类</label>
+        <select id="wf-verb-type">
+          <option value="">请选择</option>
+          <option value="一类动词">一类动词</option>
+          <option value="二类动词">二类动词</option>
+          <option value="三类动词">三类动词</option>
+        </select>
+      </div>
+      <div class="form-group cond-group" id="wf-adj-group">
+        <label>形容词分类</label>
+        <select id="wf-adj-type">
+          <option value="">请选择</option>
+          <option value="一类形容词">一类形容词</option>
+          <option value="二类形容词">二类形容词</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>声调</label>
+        <input type="text" id="wf-pitch" placeholder="如：②">
+      </div>
+      <div class="form-group">
+        <label>释义</label>
+        <textarea id="wf-meaning" placeholder="中文释义..."></textarea>
+      </div>
+      <button class="btn btn-primary" id="wf-save">保存</button>
+    </section>
+
+    <!-- ====== 查语法 ====== -->
+    <section class="view" id="view-grammar-search">
+      <div class="search-box">
+        <input type="text" id="grammar-search-input" placeholder="输入语法搜索..." autocomplete="off">
+        <button class="clear-btn" id="grammar-search-clear">✕</button>
+      </div>
+      <div class="result-count" id="grammar-result-count"></div>
+      <div id="grammar-results"></div>
+      <div class="empty-state" id="grammar-empty" style="display:none">还没有语法，先去添加吧</div>
+    </section>
+
+    <!-- ====== 语法详情 ====== -->
+    <section class="view" id="view-grammar-detail">
+      <div id="grammar-detail-content"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" id="grammar-edit-btn">编辑</button>
+        <button class="btn btn-danger btn-sm" id="grammar-delete-btn">删除</button>
+      </div>
+    </section>
+
+    <!-- ====== 语法表单（添加/编辑） ====== -->
+    <section class="view" id="view-grammar-form">
+      <div class="form-group">
+        <label>语法名</label>
+        <input type="text" id="gf-title" placeholder="如：～てから">
+      </div>
+      <label style="font-size:0.85rem;color:#555;font-weight:500">注释 & 例子</label>
+      <div id="gf-items"></div>
+      <button class="btn btn-outline btn-sm" id="gf-add-item" style="margin-bottom:16px">+ 添加一项</button>
+      <button class="btn btn-primary" id="gf-save">保存</button>
+    </section>
+
+    <!-- ====== 添加选择 ====== -->
+    <section class="view" id="view-add-choose">
+      <div class="home-card" id="choose-add-word" style="margin-bottom:14px">
+        <span class="icon">📖</span>添加单词
+      </div>
+      <div class="home-card" id="choose-add-grammar">
+        <span class="icon">📐</span>添加语法
+      </div>
+    </section>
+
+    <!-- ====== 查笔记列表 ====== -->
+    <section class="view" id="view-notes-list">
+      <div id="notes-list-content"></div>
+      <div class="empty-state" id="notes-empty" style="display:none">还没有笔记，点击下方按钮添加</div>
+      <button class="btn btn-outline" id="notes-add-lesson" style="width:100%;margin-top:8px">+ 添加课程笔记</button>
+    </section>
+
+    <!-- ====== 笔记详情 ====== -->
+    <section class="view" id="view-note-detail">
+      <div class="form-group">
+        <label>课程名</label>
+        <input type="text" id="nd-name">
+      </div>
+      <label style="font-size:0.85rem;color:#555;font-weight:500">笔记内容</label>
+      <div id="nd-items"></div>
+      <button class="btn btn-outline btn-sm" id="nd-add-item" style="margin-bottom:16px">+ 添加一条</button>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="nd-save" style="flex:1">保存</button>
+        <button class="btn btn-danger btn-sm" id="nd-delete">删除课程</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="active" data-tab="dict">
+      <span class="nav-icon">🔍</span>查词
+    </button>
+    <button data-tab="notes">
+      <span class="nav-icon">📝</span>查笔记
+    </button>
+  </nav>
+</div>
+
+<script>
+/* ================================================================
+   IndexedDB Wrapper
+   ================================================================ */
+const DB_NAME = 'DictionaryDB';
+const DB_VERSION = 1;
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('words')) {
+        const ws = d.createObjectStore('words', { keyPath: 'id', autoIncrement: true });
+        ws.createIndex('word', 'word', { unique: false });
+        ws.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('grammars')) {
+        const gs = d.createObjectStore('grammars', { keyPath: 'id', autoIncrement: true });
+        gs.createIndex('title', 'title', { unique: false });
+        gs.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('notes')) {
+        const ns = d.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
+        ns.createIndex('lessonName', 'lessonName', { unique: false });
+        ns.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function tx(storeName, mode) { return db.transaction(storeName, mode).objectStore(storeName); }
+
+function storePut(storeName, obj) {
+  return new Promise((resolve, reject) => {
+    const r = tx(storeName, 'readwrite').put(obj);
+    r.onsuccess = (e) => resolve(e.target.result);
+    r.onerror = (e) => reject(e.target.error);
+  });
+}
+function storeDelete(storeName, id) {
+  return new Promise((resolve, reject) => {
+    const r = tx(storeName, 'readwrite').delete(id);
+    r.onsuccess = () => resolve();
+    r.onerror = (e) => reject(e.target.error);
+  });
+}
+function storeGetAll(storeName) {
+  return new Promise((resolve, reject) => {
+    const r = tx(storeName, 'readonly').getAll();
+    r.onsuccess = (e) => resolve(e.target.result);
+    r.onerror = (e) => reject(e.target.error);
+  });
+}
+function storeGet(storeName, id) {
+  return new Promise((resolve, reject) => {
+    const r = tx(storeName, 'readonly').get(id);
+    r.onsuccess = (e) => resolve(e.target.result);
+    r.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/* Word helpers */
+function addWord(w) { w.createdAt = new Date().toISOString(); return storePut('words', w); }
+function updateWord(id, w) { w.id = id; w.createdAt = w.createdAt || new Date().toISOString(); return storePut('words', w); }
+function deleteWord(id) { return storeDelete('words', id); }
+function getWord(id) { return storeGet('words', id); }
+function getAllWords() { return storeGetAll('words'); }
+
+/* Grammar helpers */
+function addGrammar(g) { g.createdAt = new Date().toISOString(); return storePut('grammars', g); }
+function updateGrammar(id, g) { g.id = id; g.createdAt = g.createdAt || new Date().toISOString(); return storePut('grammars', g); }
+function deleteGrammar(id) { return storeDelete('grammars', id); }
+function getGrammar(id) { return storeGet('grammars', id); }
+function getAllGrammars() { return storeGetAll('grammars'); }
+
+/* Note helpers */
+function addNote(n) { n.createdAt = new Date().toISOString(); return storePut('notes', n); }
+function updateNote(id, n) { n.id = id; n.createdAt = n.createdAt || new Date().toISOString(); return storePut('notes', n); }
+function deleteNote(id) { return storeDelete('notes', id); }
+function getNote(id) { return storeGet('notes', id); }
+function getAllNotes() { return storeGetAll('notes'); }
+
+/* ================================================================
+   Navigation
+   ================================================================ */
+let currentTab = 'dict';
+const viewStack = [];
+
+function showView(viewId, pushStack = true) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const view = document.getElementById('view-' + viewId);
+  if (view) view.classList.add('active');
+  if (pushStack && (viewStack.length === 0 || viewStack[viewStack.length - 1] !== viewId)) {
+    viewStack.push(viewId);
+  }
+  updateHeader(viewId);
+  document.getElementById('content').scrollTop = 0;
+}
+
+function goBack() {
+  if (viewStack.length <= 1) return; // at root
+  viewStack.pop(); // remove current
+  const prev = viewStack.pop(); // get previous
+  showView(prev, false);
+}
+
+function resetToTabHome(tab) {
+  viewStack.length = 0;
+  if (tab === 'dict') showView('dict-home', false);
+  else showView('notes-list', false);
+}
+
+function updateHeader(viewId) {
+  const titles = {
+    'dict-home': '日语词典',
+    'word-search': '查单词',
+    'word-detail': '单词详情',
+    'word-form': '编辑单词',
+    'grammar-search': '查语法',
+    'grammar-detail': '语法详情',
+    'grammar-form': '编辑语法',
+    'add-choose': '添加',
+    'notes-list': '查笔记',
+    'note-detail': '笔记详情',
+  };
+  document.getElementById('header-title').textContent = titles[viewId] || '';
+  const isRoot = (currentTab === 'dict' && viewId === 'dict-home') ||
+                 (currentTab === 'notes' && viewId === 'notes-list');
+  document.getElementById('header-back').style.display = isRoot ? 'none' : 'inline-block';
+}
+
+/* ================================================================
+   Tab Switching
+   ================================================================ */
+document.querySelectorAll('#bottom-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // update active
+    document.querySelectorAll('#bottom-nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    resetToTabHome(currentTab);
+  });
+});
+
+/* ================================================================
+   Back button
+   ================================================================ */
+document.getElementById('header-back').addEventListener('click', goBack);
+
+/* ================================================================
+   Dict Home — card clicks
+   ================================================================ */
+document.querySelectorAll('#view-dict-home .home-card[data-goto]').forEach(card => {
+  card.addEventListener('click', () => showView(card.dataset.goto));
+});
+
+/* ================================================================
+   Add Choose page
+   ================================================================ */
+document.getElementById('choose-add-word').addEventListener('click', () => {
+  // prepare empty word form
+  currentEditWordId = null;
+  document.getElementById('view-word-form').dataset.mode = 'add';
+  document.getElementById('header-title').textContent = '添加单词';
+  clearWordForm();
+  showView('word-form');
+});
+document.getElementById('choose-add-grammar').addEventListener('click', () => {
+  currentEditGrammarId = null;
+  document.getElementById('view-grammar-form').dataset.mode = 'add';
+  document.getElementById('header-title').textContent = '添加语法';
+  clearGrammarForm();
+  showView('grammar-form');
+});
+
+/* ================================================================
+   Word Search
+   ================================================================ */
+async function renderWordSearch(query = '') {
+  const words = await getAllWords();
+  const q = query.toLowerCase().trim();
+  const filtered = q ? words.filter(w => w.word.toLowerCase().includes(q)) : words.sort((a,b) => b.id - a.id);
+  document.getElementById('word-result-count').textContent = q ? `找到 ${filtered.length} 个结果` : `共 ${filtered.length} 个单词`;
+  const container = document.getElementById('word-results');
+  document.getElementById('word-empty').style.display = filtered.length === 0 ? 'block' : 'none';
+  container.innerHTML = filtered.map(w => `
+    <div class="card" data-wid="${w.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:1.15rem;font-weight:600">${esc(w.word)}</span>
+        <span style="color:#888;font-size:0.85rem">${esc(w.reading || '')}</span>
+      </div>
+      <div style="margin-top:4px;color:#666;font-size:0.9rem">${esc(w.meaning || '')}</div>
+      ${w.pos ? `<span class="tag">${esc(w.pos)}</span>` : ''}
+      ${w.verbType ? `<span class="tag">${esc(w.verbType)}</span>` : ''}
+      ${w.adjType ? `<span class="tag">${esc(w.adjType)}</span>` : ''}
+    </div>
+  `).join('');
+  // click handlers
+  container.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', async () => {
+      const wid = parseInt(c.dataset.wid);
+      await showWordDetail(wid);
+    });
+  });
+}
+
+let wordSearchTimeout;
+document.getElementById('word-search-input').addEventListener('input', function() {
+  clearTimeout(wordSearchTimeout);
+  wordSearchTimeout = setTimeout(() => renderWordSearch(this.value), 150);
+});
+document.getElementById('word-search-clear').addEventListener('click', function() {
+  document.getElementById('word-search-input').value = '';
+  renderWordSearch('');
+});
+
+/* ================================================================
+   Word Detail
+   ================================================================ */
+async function showWordDetail(id) {
+  const w = await getWord(id);
+  if (!w) { alert('单词不存在'); return; }
+  currentViewWordId = id;
+  let html = `
+    <div class="detail-field"><div class="field-label">单词</div><div class="field-value" style="font-size:1.4rem;font-weight:600">${esc(w.word)}</div></div>
+    <div class="detail-field"><div class="field-label">读法</div><div class="field-value">${esc(w.reading || '—')}</div></div>
+    <div class="detail-field"><div class="field-label">词性</div><div class="field-value">${esc(w.pos || '—')}</div></div>
+  `;
+  if (w.pos === '动词' && w.verbType) {
+    html += `<div class="detail-field"><div class="field-label">动词分类</div><div class="field-value">${esc(w.verbType)}</div></div>`;
+  }
+  if (w.pos === '形容词' && w.adjType) {
+    html += `<div class="detail-field"><div class="field-label">形容词分类</div><div class="field-value">${esc(w.adjType)}</div></div>`;
+  }
+  html += `
+    <div class="detail-field"><div class="field-label">声调</div><div class="field-value">${esc(w.pitch || '—')}</div></div>
+    <div class="detail-field"><div class="field-label">释义</div><div class="field-value">${esc(w.meaning || '—')}</div></div>
+  `;
+  document.getElementById('word-detail-content').innerHTML = html;
+  showView('word-detail');
+}
+
+let currentViewWordId = null;
+
+document.getElementById('word-edit-btn').addEventListener('click', async () => {
+  if (!currentViewWordId) return;
+  const w = await getWord(currentViewWordId);
+  if (!w) return;
+  document.getElementById('view-word-form').dataset.mode = 'edit';
+  document.getElementById('header-title').textContent = '编辑单词';
+  fillWordForm(w);
+  showView('word-form');
+});
+document.getElementById('word-delete-btn').addEventListener('click', async () => {
+  if (!currentViewWordId) return;
+  if (!confirm('确定删除这个单词吗？此操作不可撤销。')) return;
+  await deleteWord(currentViewWordId);
+  currentViewWordId = null;
+  showView('word-search', false);
+  renderWordSearch(document.getElementById('word-search-input').value);
+});
+
+/* ================================================================
+   Word Form
+   ================================================================ */
+let currentEditWordId = null;
+
+function clearWordForm() {
+  document.getElementById('wf-word').value = '';
+  document.getElementById('wf-reading').value = '';
+  document.getElementById('wf-pos').value = '';
+  document.getElementById('wf-verb-type').value = '';
+  document.getElementById('wf-adj-type').value = '';
+  document.getElementById('wf-pitch').value = '';
+  document.getElementById('wf-meaning').value = '';
+  updateCondGroups();
+}
+
+function fillWordForm(w) {
+  currentEditWordId = w.id;
+  document.getElementById('wf-word').value = w.word || '';
+  document.getElementById('wf-reading').value = w.reading || '';
+  document.getElementById('wf-pos').value = w.pos || '';
+  document.getElementById('wf-verb-type').value = w.verbType || '';
+  document.getElementById('wf-adj-type').value = w.adjType || '';
+  document.getElementById('wf-pitch').value = w.pitch || '';
+  document.getElementById('wf-meaning').value = w.meaning || '';
+  updateCondGroups();
+}
+
+function updateCondGroups() {
+  const pos = document.getElementById('wf-pos').value;
+  document.getElementById('wf-verb-group').classList.toggle('show', pos === '动词');
+  document.getElementById('wf-adj-group').classList.toggle('show', pos === '形容词');
+}
+
+document.getElementById('wf-pos').addEventListener('change', updateCondGroups);
+
+document.getElementById('wf-save').addEventListener('click', async () => {
+  const word = document.getElementById('wf-word').value.trim();
+  if (!word) { alert('请输入单词'); return; }
+  const data = {
+    word,
+    reading: document.getElementById('wf-reading').value.trim(),
+    pos: document.getElementById('wf-pos').value,
+    verbType: document.getElementById('wf-pos').value === '动词' ? document.getElementById('wf-verb-type').value : null,
+    adjType: document.getElementById('wf-pos').value === '形容词' ? document.getElementById('wf-adj-type').value : null,
+    pitch: document.getElementById('wf-pitch').value.trim(),
+    meaning: document.getElementById('wf-meaning').value.trim(),
+  };
+  const mode = document.getElementById('view-word-form').dataset.mode;
+  if (mode === 'edit' && currentEditWordId) {
+    await updateWord(currentEditWordId, data);
+    currentEditWordId = null;
+  } else {
+    await addWord(data);
+  }
+  // go back to search
+  viewStack.length = 0;
+  showView('word-search', false);
+  renderWordSearch('');
+});
+
+/* ================================================================
+   Grammar Search
+   ================================================================ */
+async function renderGrammarSearch(query = '') {
+  const grammars = await getAllGrammars();
+  const q = query.toLowerCase().trim();
+  const filtered = q ? grammars.filter(g => g.title.toLowerCase().includes(q)) : grammars.sort((a,b) => b.id - a.id);
+  document.getElementById('grammar-result-count').textContent = q ? `找到 ${filtered.length} 个结果` : `共 ${filtered.length} 个语法`;
+  const container = document.getElementById('grammar-results');
+  document.getElementById('grammar-empty').style.display = filtered.length === 0 ? 'block' : 'none';
+  container.innerHTML = filtered.map(g => `
+    <div class="card" data-gid="${g.id}">
+      <div style="font-size:1.15rem;font-weight:600">${esc(g.title)}</div>
+      <div style="margin-top:4px;color:#666;font-size:0.9rem">
+        ${esc((g.items && g.items[0]) ? (g.items[0].note || '') : '')}
+      </div>
+      <span class="tag">${g.items ? g.items.length + ' 条说明' : '0 条'}</span>
+    </div>
+  `).join('');
+  container.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', async () => {
+      await showGrammarDetail(parseInt(c.dataset.gid));
+    });
+  });
+}
+
+let grammarSearchTimeout;
+document.getElementById('grammar-search-input').addEventListener('input', function() {
+  clearTimeout(grammarSearchTimeout);
+  grammarSearchTimeout = setTimeout(() => renderGrammarSearch(this.value), 150);
+});
+document.getElementById('grammar-search-clear').addEventListener('click', function() {
+  document.getElementById('grammar-search-input').value = '';
+  renderGrammarSearch('');
+});
+
+/* ================================================================
+   Grammar Detail
+   ================================================================ */
+let currentViewGrammarId = null;
+
+async function showGrammarDetail(id) {
+  const g = await getGrammar(id);
+  if (!g) { alert('语法不存在'); return; }
+  currentViewGrammarId = id;
+  let html = `<div class="detail-field"><div class="field-label">语法名</div><div class="field-value" style="font-size:1.3rem;font-weight:600">${esc(g.title)}</div></div>`;
+  if (g.items && g.items.length) {
+    html += `<div class="field-label" style="margin-top:12px;margin-bottom:6px">注释 & 例子</div>`;
+    g.items.forEach((it, i) => {
+      html += `
+        <div class="item-card" style="background:#fff">
+          <div class="detail-field"><div class="field-label">注释 ${i+1}</div><div class="field-value">${esc(it.note || '—')}</div></div>
+          <div class="detail-field"><div class="field-label">例子</div><div class="field-value">${esc(it.example || '—')}</div></div>
+        </div>`;
+    });
+  }
+  document.getElementById('grammar-detail-content').innerHTML = html;
+  showView('grammar-detail');
+}
+
+document.getElementById('grammar-edit-btn').addEventListener('click', async () => {
+  if (!currentViewGrammarId) return;
+  const g = await getGrammar(currentViewGrammarId);
+  if (!g) return;
+  document.getElementById('view-grammar-form').dataset.mode = 'edit';
+  document.getElementById('header-title').textContent = '编辑语法';
+  fillGrammarForm(g);
+  showView('grammar-form');
+});
+document.getElementById('grammar-delete-btn').addEventListener('click', async () => {
+  if (!currentViewGrammarId) return;
+  if (!confirm('确定删除这个语法吗？此操作不可撤销。')) return;
+  await deleteGrammar(currentViewGrammarId);
+  currentViewGrammarId = null;
+  showView('grammar-search', false);
+  renderGrammarSearch('');
+});
+
+/* ================================================================
+   Grammar Form
+   ================================================================ */
+let currentEditGrammarId = null;
+
+function clearGrammarForm() {
+  document.getElementById('gf-title').value = '';
+  document.getElementById('gf-items').innerHTML = '';
+  // always start with at least one item
+  addGrammarItem();
+}
+
+function fillGrammarForm(g) {
+  currentEditGrammarId = g.id;
+  document.getElementById('gf-title').value = g.title || '';
+  document.getElementById('gf-items').innerHTML = '';
+  const items = (g.items && g.items.length) ? g.items : [{ note: '', example: '' }];
+  items.forEach(it => addGrammarItem(it.note, it.example));
+}
+
+function addGrammarItem(note = '', example = '') {
+  const div = document.createElement('div');
+  div.className = 'item-card';
+  div.innerHTML = `
+    <button class="item-remove" title="删除此项">✕</button>
+    <div class="form-group">
+      <label>注释</label>
+      <input type="text" class="gi-note" value="${escAttr(note)}">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>例子</label>
+      <input type="text" class="gi-example" value="${escAttr(example)}">
+    </div>`;
+  div.querySelector('.item-remove').addEventListener('click', () => {
+    const allItems = document.querySelectorAll('#gf-items .item-card');
+    if (allItems.length <= 1) {
+      // clear the last item instead of removing
+      div.querySelector('.gi-note').value = '';
+      div.querySelector('.gi-example').value = '';
+      return;
+    }
+    div.remove();
+  });
+  document.getElementById('gf-items').appendChild(div);
+}
+
+document.getElementById('gf-add-item').addEventListener('click', () => addGrammarItem());
+
+document.getElementById('gf-save').addEventListener('click', async () => {
+  const title = document.getElementById('gf-title').value.trim();
+  if (!title) { alert('请输入语法名'); return; }
+  const items = [];
+  document.querySelectorAll('#gf-items .item-card').forEach(card => {
+    const note = card.querySelector('.gi-note').value.trim();
+    const example = card.querySelector('.gi-example').value.trim();
+    if (note || example) items.push({ note, example });
+  });
+  const data = { title, items };
+  const mode = document.getElementById('view-grammar-form').dataset.mode;
+  if (mode === 'edit' && currentEditGrammarId) {
+    await updateGrammar(currentEditGrammarId, data);
+    currentEditGrammarId = null;
+  } else {
+    await addGrammar(data);
+  }
+  viewStack.length = 0;
+  showView('grammar-search', false);
+  renderGrammarSearch('');
+});
+
+/* ================================================================
+   Notes List
+   ================================================================ */
+async function renderNotesList() {
+  const notes = await getAllNotes();
+  const sorted = notes.sort((a, b) => b.id - a.id);
+  const container = document.getElementById('notes-list-content');
+  document.getElementById('notes-empty').style.display = sorted.length === 0 ? 'block' : 'none';
+  container.innerHTML = sorted.map(n => `
+    <div class="card" data-nid="${n.id}">
+      <span style="font-size:1.1rem;font-weight:600">${esc(n.lessonName || '未命名')}</span>
+      <span style="float:right;color:#888;font-size:0.85rem">${n.items ? n.items.length + ' 条' : '0 条'}</span>
+    </div>
+  `).join('');
+  container.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', async () => {
+      await showNoteDetail(parseInt(c.dataset.nid));
+    });
+  });
+}
+
+document.getElementById('notes-add-lesson').addEventListener('click', async () => {
+  const name = prompt('请输入课程名称：');
+  if (!name || !name.trim()) return;
+  const newId = await addNote({ lessonName: name.trim(), items: [] });
+  await showNoteDetail(newId);
+});
+
+/* ================================================================
+   Note Detail
+   ================================================================ */
+let currentViewNoteId = null;
+
+async function showNoteDetail(id) {
+  const n = await getNote(id);
+  if (!n) { alert('笔记不存在'); return; }
+  currentViewNoteId = id;
+  document.getElementById('nd-name').value = n.lessonName || '';
+  document.getElementById('nd-items').innerHTML = '';
+  const items = (n.items && n.items.length) ? n.items : [{ note: '', example: '' }];
+  items.forEach(it => addNoteItem(it.note, it.example));
+  showView('note-detail');
+}
+
+function addNoteItem(note = '', example = '') {
+  const div = document.createElement('div');
+  div.className = 'item-card';
+  div.innerHTML = `
+    <button class="item-remove" title="删除此项">✕</button>
+    <div class="form-group">
+      <label>注释</label>
+      <input type="text" class="ni-note" value="${escAttr(note)}">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label>例子</label>
+      <input type="text" class="ni-example" value="${escAttr(example)}">
+    </div>`;
+  div.querySelector('.item-remove').addEventListener('click', () => {
+    const allItems = document.querySelectorAll('#nd-items .item-card');
+    if (allItems.length <= 1) {
+      div.querySelector('.ni-note').value = '';
+      div.querySelector('.ni-example').value = '';
+      return;
+    }
+    div.remove();
+  });
+  document.getElementById('nd-items').appendChild(div);
+}
+
+document.getElementById('nd-add-item').addEventListener('click', () => addNoteItem());
+
+document.getElementById('nd-save').addEventListener('click', async () => {
+  if (!currentViewNoteId) return;
+  const name = document.getElementById('nd-name').value.trim();
+  if (!name) { alert('请输入课程名'); return; }
+  const items = [];
+  document.querySelectorAll('#nd-items .item-card').forEach(card => {
+    const note = card.querySelector('.ni-note').value.trim();
+    const example = card.querySelector('.ni-example').value.trim();
+    if (note || example) items.push({ note, example });
+  });
+  await updateNote(currentViewNoteId, { lessonName: name, items });
+  // back to list
+  viewStack.length = 0;
+  showView('notes-list', false);
+  renderNotesList();
+});
+
+document.getElementById('nd-delete').addEventListener('click', async () => {
+  if (!currentViewNoteId) return;
+  if (!confirm('确定删除这个课程笔记吗？此操作不可撤销。')) return;
+  await deleteNote(currentViewNoteId);
+  currentViewNoteId = null;
+  viewStack.length = 0;
+  showView('notes-list', false);
+  renderNotesList();
+});
+
+/* ================================================================
+   Export / Import
+   ================================================================ */
+document.getElementById('btn-export').addEventListener('click', async () => {
+  const [words, grammars, notes] = await Promise.all([getAllWords(), getAllGrammars(), getAllNotes()]);
+  const data = { words, grammars, notes, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dictionary-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', async function() {
+  const file = this.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.words && !data.grammars && !data.notes) {
+      alert('文件格式不正确，需要包含 words、grammars 或 notes 字段');
+      return;
+    }
+    if (!confirm(`即将导入：\n- ${(data.words||[]).length} 个单词\n- ${(data.grammars||[]).length} 个语法\n- ${(data.notes||[]).length} 个笔记\n\n此操作会追加到现有数据，确定继续？`)) return;
+    let count = 0;
+    for (const w of (data.words || [])) { delete w.id; await addWord(w); count++; }
+    for (const g of (data.grammars || [])) { delete g.id; await addGrammar(g); count++; }
+    for (const n of (data.notes || [])) { delete n.id; await addNote(n); count++; }
+    alert(`导入完成，共 ${count} 条记录`);
+    // refresh current view
+    if (currentTab === 'dict') renderWordSearch('');
+    else renderNotesList();
+  } catch (e) {
+    alert('导入失败：' + e.message);
+  }
+  this.value = '';
+});
+
+/* ================================================================
+   Settings gear → export/import (quick access on dict home)
+   ================================================================ */
+document.getElementById('header-action').addEventListener('click', () => {
+  // go to dict home where export/import buttons live
+  if (currentTab === 'notes') {
+    // switch to dict tab
+    currentTab = 'dict';
+    document.querySelectorAll('#bottom-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelector('#bottom-nav button[data-tab="dict"]').classList.add('active');
+  }
+  resetToTabHome('dict');
+});
+
+/* ================================================================
+   Utility
+   ================================================================ */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function escAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ================================================================
+   Init
+   ================================================================ */
+async function init() {
+  await openDB();
+  // initial render
+  renderWordSearch('');
+  renderGrammarSearch('');
+  renderNotesList();
+  showView('dict-home', false);
+}
+
+init().catch(err => {
+  console.error('Init failed:', err);
+  document.getElementById('content').innerHTML = '<div class="empty-state">数据库初始化失败，请检查浏览器是否支持 IndexedDB</div>';
+});
+</script>
+
+<!-- Register Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
